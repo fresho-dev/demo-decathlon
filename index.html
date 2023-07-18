@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en">
+
+<head>
+  <!-- HTML metadata -->
+  <meta charset="UTF-8" />
+  <title>Fresho Decathlon</title>
+  <meta name="description" content="E-Commerce platform powered by fresho.dev." />
+  <link rel="icon" type="image/png" href="./static/logo-72x72.png" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+
+  <!-- Social media preview images -->
+  <meta property="og:image" content="./static/logo-512x512.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="512">
+  <meta property="og:image:height" content="512">
+
+  <!-- Add to homescreen for Safari on iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-title" content="Fresho Decathlon" />
+
+  <!-- Homescreen icons -->
+  <link rel="apple-touch-icon" href="./static/logo-72x72.png" />
+  <link rel="apple-touch-icon" sizes="72x72" href="./static/logo-72x72.png" />
+  <link rel="apple-touch-icon" sizes="128x128" href="./static/logo-128x128.png" />
+  <link rel="apple-touch-icon" sizes="512x512" href="./static/logo-512x512.png" />
+
+  <!-- Other PWA stuff -->
+  <meta name="theme-color" content="#000000">
+
+  <!-- Capabilities-related metadata -->
+  <meta name="viewport" content="width=device-width,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+
+  <!-- Third party imports -->
+  <script src="https://unpkg.com/petite-vue"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css">
+
+  <!-- Service worker registration -->
+  <script>
+    navigator.serviceWorker.register('./js/sw.js').then(event => {
+      console.log('ServiceWorker registration successful:', event);
+    }, function (err) {
+      alert(`ServiceWorker registration failed: ${err}`);
+    });
+  </script>
+</head>
+
+<body v-scope @vue:mounted="mounted" class="h-full">
+
+  <!-- Page logo -->
+  <div class="flex flex-col items-center justify-center h-[96px] pt-[16px]">
+    <img class="h-full object-contain" src="./static/logo.png" />
+  </div>
+
+  <!-- Product Selector -->
+  <div class="flex flex-col items-center h-[calc(100%-80px)] mt-8">
+    <div class="w-5/6 justify-center">
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 my-4">
+        <div class="p-2 flex mb-4 justify-center" v-for="product in productChoices">
+          <div class="cursor-pointer" @click="selectProduct(product)">
+            <img class="h-64 w-64 rounded-lg object-cover" v-bind:src="product.images?.at(0)" />
+            <span class="mx-auto flex text-xs w-64">{{product.title}}</span>
+            <span class="mx-auto flex text-sm w-64">${{product.price / 100}}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fixed top-0 bottom-0 left-0 right-0 bg-opacity-20 bg-black" v-show="productSelection"
+      @click="productSelection = null"></div>
+
+    <div class="fixed top-0 bottom-0 left-0 right-0 pointer-events-none" v-show="productSelection">
+      <div class="flex flex-col items-center justify-center h-full">
+        <div class="p-4 max-w-xl rounded overflow-hidden overscroll-none shadow-lg bg-white pointer-events-auto">
+          <div class="relative w-full max-h-half">
+            <i @click="scrollProductImage(-1)"
+              class="fa fa-arrow-left cursor-pointer absolute top-[50%] left-6 bg-white bg-opacity-20 p-2 -mt-2 rounded-full"></i>
+            <i @click="scrollProductImage(+1)"
+              class="fa fa-arrow-right cursor-pointer absolute top-[50%] right-6 bg-white bg-opacity-20 p-2 -mt-2 rounded-full"></i>
+            <img class="w-full h-full max-h-half object-contain"
+              v-bind:src="productSelection?.images?.at(currentImageIndex) ?? ''" />
+            <img src="./static/loading.gif" class="w-8 h-8 absolute top-[50%] left-[50%] -ml-8 -mt-8"
+              v-show="loadingImage" />
+          </div>
+          <div class="flex flex-col px-6 py-2 overflow-hidden max-h-60">
+            <!-- <div class="font-weight-700 text-md w-64">${{productSelection?.price / 100}}</div> -->
+            <div class="font-weight-600 text-md mb-2 text-gray-900">{{productSelection?.title}}</div>
+            <p class="text-gray-700 text-base text-sm overflow-auto overscroll-none"
+              v-html="productSelection?.customizedDescription ?? '...'">
+            </p>
+          </div>
+          <div class="px-6 pt-4 pb-2">
+            <button
+              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+              Buy for ${{productSelection?.price / 100}}
+            </button>
+            <button @click="productSelection = null"
+              class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+</body>
+
+<script type="module">
+
+  const workerRoot = 'https://functions.fresho.workers.dev';
+
+  const prompt = `
+    You work for an online retail company. Your task is to write a very concise product description tailored to an audience.
+    The audience has a set of attributes about themselves, and a set of interests related to what they are looking for.
+    Do not overstate the product features and do not hallucinate features about the product, be objective and stay simple.
+    If the product is not a good match for the audience, advertise how good it would be as a gift for the appropriate audience.
+    For example, don't try to sell women's apparel such as bras or women's shoes to a man; instead,
+    try to suggest purchasing the women's apparel as a gift to a woman. `;
+
+  window.app = PetiteVue.createApp({
+    details: null,
+    geolocation: null,
+    productSelection: null,
+    currentImageIndex: 0,
+    loadingImage: false,
+
+    productChoices: [],
+    attributeSelected: [],
+    interestSelected: [],
+
+    cachedPrompts: {},
+
+    async mounted() {
+      // Load audience details.
+      const params = new URL(window.location.href).searchParams;
+      this.geolocation = params.get('audience_geolocation');
+      this.interestSelected = params.get('audience_interests')?.split(',') || [];
+      this.attributeSelected = params.get('audience_attributes')?.split(',') || [];
+
+      // Load the product inventory.
+      this.productChoices = await fetch(`./static/products.json`)
+        .then(res => res.json())
+        .then(arr => arr.sort(() => Math.random() - 0.5));
+
+      // Manually handle navigation events.
+      window.onpopstate = event => this.back();
+
+      // TODO: Handle initial playlist request.
+      window.location.hash = '';
+    },
+
+    selectProduct(product) {
+      this.currentImageIndex = 0;
+      this.productSelection = product;
+      this.customizeProductDescription(product);
+    },
+
+    scrollProductImage(offset) {
+      this.loadingImage = true;
+      this.currentImageIndex = (this.currentImageIndex + offset) % this.productSelection?.images?.length ?? 0;
+      const image = new Image();
+      image.onload = () => this.loadingImage = false;
+      image.src = this.productSelection?.images?.at(this.currentImageIndex);
+    },
+
+    async customizeProductDescription(product) {
+      const fullPrompt = `
+          ${prompt}
+          Audience location: ${this.geolocation}.
+          Audience interests: ${this.interestSelected.join(', ')}.
+          Audience attributes: ${this.attributeSelected.join(', ')}.
+          Product overview: ${product.title}. ${product.description}.
+          Customized product description:\n\n
+        `;
+      if (this.interestSelected.length === 0 && this.attributeSelected.length === 0) {
+        this.productSelection.customizedDescription = product.description;
+      } else if (!(fullPrompt in this.cachedPrompts)) {
+        this.productSelection.customizedDescription = '...';
+        const completionUrl = `${workerRoot}/genai/openai/completion.txt`;
+        // const completionUrl = `${workerRoot}/genai/anthropic/completion.txt?model=claude-2`;
+        const res = await fetch(completionUrl, { method: 'POST', body: fullPrompt }).then(res => res.text());
+        this.productSelection.customizedDescription = res;
+        this.cachedPrompts[fullPrompt] = res;
+      }
+    },
+
+    back() {
+      history.replaceState({}, null, '');
+      window.location.hash = '';
+      this.audience = null;
+    },
+
+  }).mount();
+
+</script>
+
+</html>

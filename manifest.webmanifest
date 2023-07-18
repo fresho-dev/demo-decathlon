@@ -1,0 +1,50 @@
+{
+    "$schema": "https://json.schemastore.org/web-manifest-combined.json",
+    "name": "Fresho Decathlon",
+    "short_name": "Fresho Decathlon",
+    "theme_color": "#1976d2",
+    "background_color": "#000000",
+    "display": "standalone",
+    "scope": "./",
+    "start_url": "/?homescreen=1",
+    "id": "/?homescreen=1",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "static/logo-72x72.png",
+            "sizes": "72x72",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "static/logo-96x96.png",
+            "sizes": "96x96",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "static/logo-128x128.png",
+            "sizes": "128x128",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "static/logo-144x144.png",
+            "sizes": "144x144",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "static/logo-256x256.png",
+            "sizes": "256x256",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "static/logo-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable any"
+        }
+    ]
+}
